@@ -625,12 +625,13 @@ Object.entries(POS).forEach(([id,pos])=>{
   g.style.cursor='pointer';
   g.addEventListener('click',()=>openPanel(id));
   g.addEventListener('mouseenter',()=>{ if(!activeNode&&!activeScenario){ dimAll(); brightNode(id); highlightEdges(id); }});
-  g.addEventListener('mouseleave',()=>{ if(!activeNode&&!activeScenario) undimAll(); });
+  g.addEventListener('mouseleave',()=>{ if(!activeNode&&!activeScenario){ if(activeFilter==='all') undimAll(); else applyFilter(activeFilter); }});
 });
 
 // ── State ──────────────────────────────────────────────────────────────
 let activeNode=null;
 let activeScenario=null;
+let activeFilter='all';
 let liveMode=false;
 let liveAnimFrames={};
 let activeTier='pro';
@@ -740,7 +741,7 @@ function runScenario(key){
   if(key==='none'||key===activeScenario){
     activeScenario=null;
     closePanel();
-    undimAll();
+    if(activeFilter==='all') undimAll(); else applyFilter(activeFilter);
     hideToast();
     return;
   }
@@ -817,10 +818,7 @@ const LAYER_MAP={
   integration: ['nx_ai_manager','metadata_sdk','nx_maps','third_party_local'],
   resources:   ['storage','video_resources','control_resources'],
 };
-function filterLayer(layer,e){
-  closePanel(); if(activeScenario) runScenario('none');
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  if(e) e.target.classList.add('active');
+function applyFilter(layer){
   if(layer==='all'){ undimAll(); return; }
   dimAll();
   const ids=LAYER_MAP[layer]||[];
@@ -830,6 +828,13 @@ function filterLayer(layer,e){
     if(ids.includes(from)&&ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.65)'); e.setAttribute('stroke-width','1.8'); }
     else if(ids.includes(from)||ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.18)'); }
   });
+}
+function filterLayer(layer,e){
+  closePanel(); if(activeScenario) runScenario('none');
+  activeFilter=layer;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(e) e.target.classList.add('active');
+  applyFilter(layer);
 }
 
 // CSS animation for live dots (injected so SVG elements can use it)
