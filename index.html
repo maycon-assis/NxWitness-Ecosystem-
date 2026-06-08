@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nx Witness Gen 6 — System Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --nx-dark:     #080c12;
+    --nx-surface:  #0f1520;
+    --nx-surface2: #141c2c;
+    --nx-surface3: #1a2438;
+    --nx-border:   rgba(255,255,255,0.06);
+    --nx-border2:  rgba(255,255,255,0.11);
+    --nx-blue:     #2196f3;
+    --nx-blue-dim: rgba(33,150,243,0.12);
+    --nx-cyan:     #00d4ff;
+    --nx-teal:     #0fc8aa;
+    --nx-text:     #dde6f2;
+    --nx-text2:    #7a8898;
+    --nx-text3:    #3e4e62;
+    --nx-green:    #22c55e;
+    --nx-amber:    #f59e0b;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--nx-dark); color:var(--nx-text); font-family:'Inter',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* ── Header ──────────────────────────────────────────── */
+  header {
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 36px; height:58px;
+    background:rgba(8,12,18,0.96); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--nx-border);
+  }
+  .logo { display:flex; align-items:center; gap:12px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; letter-spacing:-.3px; }
+  .logo-mark { width:30px; height:30px; background:linear-gradient(135deg,#1a6fcc,#2196f3); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff; }
+  .logo-mark span { color:#7dd3fc; }
+  .header-right { display:flex; gap:7px; align-items:center; }
+  .badge { font-size:10.5px; font-weight:600; padding:3px 9px; border-radius:20px; letter-spacing:.4px; }
+  .badge-blue  { background:rgba(33,150,243,.1);  color:#60a5fa; border:1px solid rgba(33,150,243,.2); }
+  .badge-green { background:rgba(34,197,94,.09);  color:#4ade80; border:1px solid rgba(34,197,94,.2); }
+  .badge-amber { background:rgba(245,158,11,.09); color:#fbbf24; border:1px solid rgba(245,158,11,.2); }
+
+  /* ── Canvas ──────────────────────────────────────────── */
+  .canvas-wrap { padding-top:58px; display:flex; flex-direction:column; }
+  .canvas-intro { text-align:center; padding:28px 24px 8px; }
+  .canvas-intro h1 {
+    font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700;
+    letter-spacing:-.5px; margin-bottom:7px;
+    background:linear-gradient(135deg,#dde6f2 0%,#7dd3fc 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .canvas-intro p { font-size:13px; color:var(--nx-text2); max-width:540px; margin:0 auto; line-height:1.65; }
+  .gen-pill { display:inline-flex; align-items:center; gap:7px; margin-top:10px; font-size:11px; color:var(--nx-teal); background:rgba(15,200,170,.07); border:1px solid rgba(15,200,170,.18); padding:5px 14px; border-radius:20px; }
+  .gen-dot { width:6px; height:6px; border-radius:50%; background:var(--nx-teal); animation:blink 2.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.65)} }
+
+  /* ── Control bar ─────────────────────────────────────── */
+  .control-bar { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding:12px 24px 4px; align-items:center; }
+  .control-sep { width:1px; height:22px; background:var(--nx-border2); margin:0 4px; }
+
+  .filter-btn {
+    font-size:11px; font-weight:500; padding:5px 14px;
+    border-radius:20px; border:1px solid var(--nx-border2);
+    background:transparent; color:var(--nx-text2);
+    cursor:pointer; transition:all .18s; letter-spacing:.35px;
+  }
+  .filter-btn:hover { background:var(--nx-blue-dim); color:#90caf9; border-color:rgba(33,150,243,.28); }
+  .filter-btn.active { background:var(--nx-blue); color:#fff; border-color:var(--nx-blue); }
+
+  /* Tier toggle */
+  .tier-toggle { display:flex; background:var(--nx-surface2); border:1px solid var(--nx-border2); border-radius:20px; overflow:hidden; }
+  .tier-btn { font-size:11px; font-weight:600; padding:5px 14px; border:none; background:transparent; color:var(--nx-text2); cursor:pointer; transition:all .18s; letter-spacing:.35px; }
+  .tier-btn.active-pro { background:rgba(33,150,243,.18); color:#90caf9; }
+  .tier-btn.active-ent { background:rgba(245,158,11,.18); color:#fbbf24; }
+
+  /* ── Scenario bar ────────────────────────────────────── */
+  .scenario-bar { display:flex; gap:7px; justify-content:center; flex-wrap:wrap; padding:6px 24px 8px; }
+  .scenario-btn {
+    font-size:11px; font-weight:500; padding:5px 14px;
+    border-radius:20px; border:1px solid var(--nx-border2);
+    background:transparent; color:var(--nx-text2);
+    cursor:pointer; transition:all .18s; display:flex; align-items:center; gap:6px;
+  }
+  .scenario-btn:hover { background:rgba(15,200,170,.08); color:var(--nx-teal); border-color:rgba(15,200,170,.25); }
+  .scenario-btn.active { background:rgba(15,200,170,.12); color:var(--nx-teal); border-color:rgba(15,200,170,.35); }
+  .scenario-label { font-size:10px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:var(--nx-text3); padding:0 4px; align-self:center; }
+
+  /* ── Scenario toast ──────────────────────────────────── */
+  .scenario-toast {
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--nx-surface); border:1px solid rgba(15,200,170,.25);
+    border-radius:12px; padding:14px 20px; max-width:460px; width:90%;
+    z-index:200; opacity:0; transition:opacity .3s, transform .3s;
+    pointer-events:none;
+  }
+  .scenario-toast.visible { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast-title { font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:600; color:var(--nx-teal); margin-bottom:5px; }
+  .toast-body { font-size:12px; color:var(--nx-text2); line-height:1.6; }
+  .toast-close { position:absolute; top:10px; right:12px; background:none; border:none; color:var(--nx-text3); cursor:pointer; font-size:14px; }
+
+
+  /* ── SVG ─────────────────────────────────────────────── */
+  #arch-svg { display:block; width:100%; max-width:1360px; margin:0 auto; }
+
+  /* Flow pulse animation */
+  @keyframes flowdash { to { stroke-dashoffset: -40; } }
+  .flow-active { animation: flowdash 1.2s linear infinite !important; }
+
+  /* ── Detail Panel ────────────────────────────────────── */
+  .detail-panel {
+    position:fixed; top:58px; right:-460px; width:440px; height:calc(100vh - 58px);
+    background:var(--nx-surface); border-left:1px solid var(--nx-border2);
+    transition:right .32s cubic-bezier(.4,0,.2,1); z-index:90;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .detail-panel.open { right:0; }
+  .panel-header { padding:22px 22px 16px; border-bottom:1px solid var(--nx-border); flex-shrink:0; }
+  .panel-close { float:right; width:28px; height:28px; background:var(--nx-surface3); border:1px solid var(--nx-border2); border-radius:6px; color:var(--nx-text2); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; transition:background .15s,color .15s; }
+  .panel-close:hover { background:var(--nx-blue-dim); color:var(--nx-blue); }
+  .panel-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:14px; font-size:24px; }
+  .panel-category { font-size:10px; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; margin-bottom:3px; }
+  .panel-title { font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; color:var(--nx-text); letter-spacing:-.4px; }
+  .panel-tier { display:inline-flex; align-items:center; gap:4px; margin-top:7px; font-size:10px; font-weight:600; padding:3px 9px; border-radius:12px; letter-spacing:.4px; }
+  .panel-body { padding:18px 22px; flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--nx-surface3) transparent; }
+  .panel-desc { font-size:13px; line-height:1.72; color:var(--nx-text2); margin-bottom:20px; }
+  .panel-section-title { font-size:10px; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:var(--nx-text3); margin-bottom:9px; }
+  .feature-list { list-style:none; margin-bottom:22px; }
+  .feature-list li { font-size:13px; color:var(--nx-text2); padding:7px 0 7px 18px; position:relative; border-bottom:1px solid var(--nx-border); line-height:1.5; }
+  .feature-list li:last-child { border-bottom:none; }
+  .feature-list li::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); width:5px; height:5px; border-radius:50%; background:var(--nx-blue); }
+  .connections-grid { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:22px; }
+  .conn-chip { font-size:11.5px; font-weight:500; padding:4px 11px; border-radius:20px; background:var(--nx-surface3); color:var(--nx-text2); border:1px solid var(--nx-border2); cursor:pointer; transition:all .15s; }
+  .conn-chip:hover { background:var(--nx-blue-dim); color:#90caf9; border-color:rgba(33,150,243,.3); }
+  .port-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:20px; }
+  .port-table th { text-align:left; font-size:10px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:var(--nx-text3); padding:0 8px 7px 0; border-bottom:1px solid var(--nx-border); }
+  .port-table td { padding:7px 8px 7px 0; color:var(--nx-text2); border-bottom:1px solid var(--nx-border); }
+  .port-table td:first-child { font-family:'Space Grotesk',monospace; font-size:11.5px; color:var(--nx-cyan); white-space:nowrap; }
+  .port-table tr:last-child td { border-bottom:none; }
+  .gen6-note { background:rgba(15,200,170,.05); border:1px solid rgba(15,200,170,.14); border-radius:8px; padding:11px 14px; margin-bottom:18px; font-size:12.5px; color:rgba(15,200,170,.8); line-height:1.6; }
+  .gen6-note strong { color:var(--nx-teal); }
+
+  /* ── Flow legend ─────────────────────────────────────── */
+  .flow-legend { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; padding:2px 24px 10px; }
+  .legend-item { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--nx-text3); }
+  .legend-line { width:28px; height:2px; border-radius:1px; }
+  .legend-solid { background:rgba(33,150,243,.5); }
+  .legend-dashed { background:none; border-top:2px dashed rgba(33,150,243,.35); }
+  .legend-flow { background:none; border-top:2px solid #0fc8aa; position:relative; overflow:hidden; }
+
+  .overlay { display:none; position:fixed; inset:58px 0 0 0; z-index:85; background:transparent; }
+  .overlay.active { display:block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">n<span>X</span></div>
+    Nx Witness
+  </div>
+  <div class="header-right">
+    <span class="badge badge-green">Gen 6</span>
+    <span class="badge badge-blue">v6.1+</span>
+    <span class="badge badge-amber">Nx EVOS</span>
+  </div>
+</header>
+
+<div class="canvas-wrap">
+  <div class="canvas-intro">
+    <h1>System Architecture</h1>
+    <p>Click any component to explore capabilities, integration points, and technical specs. Updated for Generation 6 — including Organisations, Nx AI Manager, Nx Connect, and Nx Maps.</p>
+    <div class="gen-pill">
+      <span class="gen-dot"></span>
+      "System" is now called <strong>&nbsp;Site&nbsp;</strong> in Gen 6 &nbsp;·&nbsp; Site Hive soft-capped at 10 servers / 2,560 devices &nbsp;·&nbsp; Nx AI Manager bundled with Enterprise
+    </div>
+  </div>
+
+  <!-- Control bar: filters + tier toggle + live mode -->
+  <div class="control-bar">
+    <button class="filter-btn active" onclick="filterLayer('all',event)">All Layers</button>
+    <button class="filter-btn" onclick="filterLayer('cloud',event)">Cloud &amp; Admin</button>
+    <button class="filter-btn" onclick="filterLayer('client',event)">Client Access</button>
+    <button class="filter-btn" onclick="filterLayer('server',event)">Server Core</button>
+    <button class="filter-btn" onclick="filterLayer('integration',event)">Integration &amp; AI</button>
+    <button class="filter-btn" onclick="filterLayer('resources',event)">Resources</button>
+    <div class="control-sep"></div>
+    <div class="tier-toggle">
+      <button class="tier-btn active-pro" id="tierPro" onclick="setTier('pro')">Pro</button>
+      <button class="tier-btn" id="tierEnt" onclick="setTier('enterprise')">Enterprise</button>
+    </div>
+  </div>
+
+  <!-- Scenario bar -->
+  <div class="scenario-bar">
+    <span class="scenario-label">Scenarios</span>
+    <button class="scenario-btn" onclick="runScenario('remote')">🌐 Remote Viewing</button>
+    <button class="scenario-btn" onclick="runScenario('ai')">🤖 AI Detection Alert</button>
+    <button class="scenario-btn" onclick="runScenario('multisite')">🏢 Multi-Site Enterprise</button>
+    <button class="scenario-btn" onclick="runScenario('access')">🔒 Access Control Event</button>
+    <button class="scenario-btn" onclick="runScenario('failover')">🔄 Server Failover</button>
+    <button class="scenario-btn" onclick="runScenario('none')">✕ Clear</button>
+  </div>
+
+  <!-- Flow legend -->
+  <div class="flow-legend">
+    <div class="legend-item"><div class="legend-line legend-solid"></div> Primary connection</div>
+    <div class="legend-item"><div class="legend-line legend-dashed"></div> Indirect / optional</div>
+    <div class="legend-item"><div class="legend-line legend-flow"></div> Active data flow</div>
+    <div class="legend-item"><svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,1 13,4.5 13,10.5 7,14 1,10.5 1,4.5" fill="none" stroke="rgba(251,191,36,.5)" stroke-width="1" stroke-dasharray="2 2"/></svg> Enterprise only</div>
+  </div>
+
+  <svg id="arch-svg" viewBox="0 0 1280 870" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-teal" x="-50%" y="-50%" width="200%" height="200%">
+        <feColorMatrix type="matrix" values="0 0 0 0 0.06  0 0 0 0 0.78  0 0 0 0 0.67  0 0 0 1 0" result="teal"/>
+        <feGaussianBlur in="teal" stdDeviation="8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="live-glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <radialGradient id="grad-cloud" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#163060"/><stop offset="100%" stop-color="#071428"/>
+      </radialGradient>
+      <radialGradient id="grad-client" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#0e2448"/><stop offset="100%" stop-color="#051020"/>
+      </radialGradient>
+      <radialGradient id="grad-server" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#0c2e2a"/><stop offset="100%" stop-color="#041618"/>
+      </radialGradient>
+      <radialGradient id="grad-integration" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#122810"/><stop offset="100%" stop-color="#061006"/>
+      </radialGradient>
+      <radialGradient id="grad-resources" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#28240a"/><stop offset="100%" stop-color="#0e0c04"/>
+      </radialGradient>
+      <!-- Live status dot gradient -->
+      <radialGradient id="grad-live" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#16a34a"/>
+      </radialGradient>
+    </defs>
+  </svg>
+</div>
+
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="panel-header">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div class="panel-icon" id="panelIcon"></div>
+    <div class="panel-category" id="panelCategory"></div>
+    <div class="panel-title" id="panelTitle"></div>
+    <div id="panelTier"></div>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+
+<div class="scenario-toast" id="scenarioToast">
+  <button class="toast-close" onclick="runScenario('none')">✕</button>
+  <div class="toast-title" id="toastTitle"></div>
+  <div class="toast-body" id="toastBody"></div>
+</div>
+
+<script>
+// ── Node data ──────────────────────────────────────────────────────────
+const NODES = {
+  nx_cloud: {
+    id:'nx_cloud', label:'Nx Cloud', sublabel:'Cloud Relay & Management',
+    layer:'cloud', icon:'☁️', tier:'both',
+    category:'Cloud Platform',
+    gen6:'Central to Gen 6 — decoupled from server releases and updated independently. Now supports the Organisations layer for Enterprise multi-site management.',
+    desc:'Public cloud platform enabling remote connectivity, multi-site management, and internet-connected Site access without a VPN. In Gen 6 Enterprise, hosts the Organisations layer for centralised control across unlimited Sites.',
+    features:['Site relay — remote access without port forwarding','Organisations layer (Enterprise) — multi-site hierarchy','Cloud-based user & permission management','SSO / identity provider integration','Firmware and software update distribution','Cloud recording storage gateway','Health monitoring dashboard'],
+    connections:['Nx Cloud Admin','Nx Desktop','Nx Mobile','3rd Party Cloud','Nx Connect','Nx Maps'],
+    ports:[['TCP 443','HTTPS cloud relay & API'],['TCP 7777','Server-to-cloud relay tunnel']],
+  },
+  cloud_admin: {
+    id:'cloud_admin', label:'Nx Cloud Admin', sublabel:'Browser Admin Portal',
+    layer:'cloud', icon:'🖥️', tier:'both',
+    category:'Administration',
+    desc:'Browser-based interface for administrators to manage cloud-connected Sites without installing any software. In Gen 6 Enterprise, also exposes the Organisations management panel.',
+    features:['Full Site configuration from any browser','Multi-site / Organisation dashboard','User & role management (including Enterprise SSO)','Camera inventory across all Sites','Storage and recording schedule config','Audit log and event history','Enterprise user management from Desktop Client (Gen 6)'],
+    connections:['Nx Cloud','Nx Media Server'],
+    ports:[['TCP 443','Cloud Admin HTTPS'],['TCP 7001','Nx Server API (via relay)']],
+  },
+  nx_connect: {
+    id:'nx_connect', label:'Nx Connect', sublabel:'Licence & Channel Portal',
+    layer:'cloud', icon:'🔗', tier:'enterprise',
+    category:'Channel Management',
+    gen6:'New in Gen 6 Enterprise. Replaces manual licence management with a subscription-based portal for resellers and installers.',
+    desc:'Cloud-based subscription management portal for channel partners. Manages reseller hierarchies, licence assignment, Nx AI Manager service activation, and billing.',
+    features:['Reseller and installer hierarchy management','Nx Core Service licence provisioning','Nx AI Manager service activation per channel','Monthly subscription billing and usage reporting','30-day Demo licence issuance','Custom service creation (roadmap)','Real-time usage analytics per customer'],
+    connections:['Nx Cloud','Nx AI Manager'],
+    ports:[['TCP 443','Cloud portal HTTPS']],
+  },
+  third_party_cloud: {
+    id:'third_party_cloud', label:'3rd Party Cloud', sublabel:'Cloud API Integrations',
+    layer:'cloud', icon:'🔌', tier:'both',
+    category:'Cloud Integration',
+    desc:'Third-party SaaS platforms and analytics services integrating with Nx via the cloud API. Includes AI analytics providers, cloud storage backends, and reporting engines.',
+    features:['AI analytics SaaS (LPR, facial recognition, crowd)','Cloud storage routing (Wasabi, AWS S3, Azure)','BI and reporting connectors','Webhook / event push to external platforms','Nx MetaVerse marketplace app delivery'],
+    connections:['Nx Cloud','Server API (REST)'],
+    ports:[['TCP 443','Cloud API HTTPS']],
+  },
+  nx_desktop: {
+    id:'nx_desktop', label:'Nx Desktop', sublabel:'Windows · macOS · Linux',
+    layer:'client', icon:'🖥️', tier:'both',
+    category:'Desktop Client',
+    gen6:'Gen 6 adds Enterprise user management directly in the Desktop Client, bookmark sharing with expiry links, and re-streaming between Sites in different Organisations.',
+    desc:'Primary Nx Witness client application. Rich media browser with a flexible grid for live view, playback, and system management. Available for Windows, macOS, and Linux.',
+    features:['Multi-stream live and playback grid','Video Wall Mode for display arrays','PTZ control and preset management','Smart motion & event timeline search','Push-to-talk two-way audio','Screen recording and clip export','Enterprise user management panel (Gen 6)','Cross-Site bookmark sharing with expiry links (Gen 6)'],
+    connections:['Nx Cloud','Nx Media Server','Nx Web Admin'],
+    ports:[['TCP 7001','Server connection (default)'],['UDP 5353','mDNS Site discovery']],
+  },
+  nx_mobile: {
+    id:'nx_mobile', label:'Nx Mobile', sublabel:'iOS & Android App',
+    layer:'client', icon:'📱', tier:'both',
+    category:'Mobile Client',
+    desc:'Native mobile application providing full surveillance access on iOS and Android. Supports direct Site connections and cloud relay for remote access.',
+    features:['Live view with multi-camera layouts','Playback and timeline navigation','Push notifications for motion and events','Two-way audio support','PTZ touch controls','Bookmark and clip sharing','Biometric authentication'],
+    connections:['Nx Cloud','Nx Media Server'],
+    ports:[['TCP 7001','Direct server connection'],['TCP 443','Cloud relay (remote)']],
+  },
+  server_api: {
+    id:'server_api', label:'Server API', sublabel:'REST / HTTP Integration',
+    layer:'client', icon:'⚙️', tier:'both',
+    category:'Integration API',
+    gen6:'API v4 introduced with Gen 6. Expanded payload schema for Generic Events, object metadata, and bookmark management.',
+    desc:'RESTful HTTP API providing programmatic access to all Nx Witness server functions. Supports authenticated calls for camera management, event injection, bookmarks, and playback exports.',
+    features:['Full CRUD for cameras, users, layouts','Generic Event injection (REST API v2 & v4)','Bookmark creation and retrieval','Playback export and clip generation','System health and storage queries','Webhook callback registration','OpenAPI / Swagger docs at /api/openapi'],
+    connections:['Nx Media Server','3rd Party Cloud','Metadata SDK (C++)'],
+    ports:[['TCP 7001','REST API (HTTP)'],['TCP 7002','REST API (HTTPS)']],
+  },
+  nx_web_admin: {
+    id:'nx_web_admin', label:'Nx Web Admin', sublabel:'Local Browser Admin',
+    layer:'client', icon:'🌐', tier:'both',
+    category:'Administration',
+    desc:'Lightweight browser-based admin interface available on every Nx Media Server. Local management without requiring the Desktop Client to be installed.',
+    features:['Camera and device configuration','Storage management and SMART monitoring','User and permission administration','Server health and resource usage','Recording schedule configuration','Event rules and action management','Basic live view and playback'],
+    connections:['Nx Media Server'],
+    ports:[['TCP 7001','Web Admin interface']],
+  },
+  nx_server: {
+    id:'nx_server', label:'Nx Media Server', sublabel:'Core Recording Engine',
+    layer:'server', icon:'🗄️', tier:'both',
+    category:'Server Core',
+    gen6:'Gen 6 raises the per-server camera limit to 256 (up from 128). Site is capped at 10 servers / 2,560 devices for stability. Nx AI Manager ships bundled with Enterprise installs (6.1.1+).',
+    desc:'The heart of Nx Witness. High-performance media server managing video recording, device discovery, stream distribution, and event processing. Runs on Windows and Linux.',
+    features:['Continuous, scheduled, and motion-triggered recording','RTSP stream ingestion and optional transcoding','Automatic camera discovery (mDNS / ONVIF)','Redundant recording failover to secondary server','Server-side motion analysis','Archive management with circular overwrite','Email, HTTP, and webhook action rules','Up to 256 cameras per server (Gen 6)','Windows Server 2025 & Ubuntu 22.04 / 24.04 LTS support'],
+    connections:['All client layers','Site Hive','Storage Management','Video Resources','Control Resources','Nx AI Manager'],
+    ports:[['TCP 7001','Primary API & client port'],['TCP 7002','HTTPS API'],['TCP 554','RTSP proxy'],['UDP 5353','mDNS discovery']],
+  },
+  server_hive: {
+    id:'server_hive', label:'Site Hive', sublabel:'Multi-Server Mesh',
+    layer:'server', icon:'🔗', tier:'both',
+    category:'Distributed System',
+    gen6:'Renamed from "System" to "Site" in Gen 6. Soft-capped at 10 servers per Site (2,560 devices total). Multiple Sites can be grouped into an Organisation (Enterprise only).',
+    desc:'Multi-server architecture where all servers in a Site are merged into a single logical entity and synchronised in real time.',
+    features:['Real-time metadata sync across all servers','Single sign-on across all servers in a Site','Automatic failover recording between servers','Load-balanced stream distribution','Shared event rules and action engine','Cross-server bookmark and clip search','Soft cap: 10 servers / 2,560 devices per Site (Gen 6)','Organisations layer groups Sites for Enterprise scale'],
+    connections:['Nx Media Server','Nx Cloud','Organisations (Enterprise)'],
+    ports:[['TCP 7001','Inter-server communication']],
+  },
+  organisations: {
+    id:'organisations', label:'Organisations', sublabel:'Multi-Site Hierarchy',
+    layer:'server', icon:'🏢', tier:'enterprise',
+    category:'Enterprise Architecture',
+    gen6:'New architectural layer introduced in Gen 6 Enterprise. Groups multiple Sites under a single management entity for centralised user, permission, and service management at unlimited scale.',
+    desc:'New in Gen 6 Enterprise. The Organisations layer sits above individual Sites, enabling centralised management of complex multi-site deployments. Permissions, licences, and services are managed at the Organisation level.',
+    features:['Groups unlimited Sites under one Organisation','Centralised user and role management','Organisation-level event and alert policies','Cross-site video re-streaming (Gen 6)','Unified licence and service assignment via Nx Connect','Single pane of glass via Nx Cloud Admin','Available exclusively in Nx Witness Enterprise'],
+    connections:['Nx Cloud','Site Hive','Nx Connect'],
+    ports:[],
+  },
+  nx_ai_manager: {
+    id:'nx_ai_manager', label:'Nx AI Manager', sublabel:'Edge AI Inference',
+    layer:'integration', icon:'🤖', tier:'enterprise',
+    category:'AI & Analytics',
+    gen6:'New in Gen 6. Bundled by default in every Nx Witness Enterprise download from Media Server 6.1.1+. Enable per device via Desktop Client → Integrations. Requires one Nx AI Manager Service per channel via Nx Connect.',
+    desc:'Universal AI inference pipeline that deploys any AI model to any hardware accelerator at the edge. Ships bundled with Nx Witness Enterprise (6.1.1+). Enables LPR, object detection, crowd analytics, and custom models without extra engineering.',
+    features:['Hardware-agnostic: GPU, NPU, CPU, NVIDIA Jetson, Intel OpenVINO','Upload any ONNX / TensorFlow / PyTorch model','Customisable pre- and post-processing pipeline config','Real-time metadata overlay in Nx Desktop','Fleet management — push model updates across all devices','Best-shot capture and classification results to event engine','Bundled in Enterprise — no separate download required (6.1.1+)','Licensed per channel via Nx Connect'],
+    connections:['Nx Media Server','Nx Connect','Metadata SDK (C++)','Video Resources'],
+    ports:[['Plugin API','Internal server plugin bus']],
+  },
+  metadata_sdk: {
+    id:'metadata_sdk', label:'Metadata SDK', sublabel:'Server Plugin Framework',
+    layer:'integration', icon:'🧩', tier:'both',
+    category:'Developer SDK',
+    desc:'C++ SDK for building server-side plugins that integrate third-party AI analytics, access control, or IoT devices natively into Nx Media Server. Plugins appear as first-class features in the client.',
+    features:['Object detection metadata overlays on live & playback','Custom analytics event types','Best-shot capture integration','Deep integration with Nx Event Engine','Plugin settings UI rendered in Desktop Client','Cross-server plugin synchronisation in a Site','Licence-based plugin activation'],
+    connections:['Nx Media Server','Server API (REST)','3rd Party Local','Nx AI Manager'],
+    ports:[],
+  },
+  nx_maps: {
+    id:'nx_maps', label:'Nx Maps', sublabel:'2D / 3D Device Mapping',
+    layer:'cloud', icon:'🗺️', tier:'enterprise',
+    category:'Situational Awareness',
+    gen6:'New in Gen 6 Enterprise. Free for lifetime for Enterprise licences purchased before Nx Maps 2.0 launch. Requires Nx Maps Service via Nx Connect.',
+    desc:'2D and 3D mapping tool that places IP devices on floor plans or geospatial maps. Enhances situational awareness with real-time spatial oversight and device status overlays.',
+    features:['Place cameras, intercoms, and access readers on floor plans','Live camera thumbnail overlays on map','Device status indicators (recording, offline, alarm)','2D and 3D map views','Integration with Site Hive for multi-server map views','Alarms and events displayed in spatial context','Requires Nx Maps Service (free for early Enterprise adopters)'],
+    connections:['Nx Cloud','Nx Media Server','Site Hive'],
+    ports:[['TCP 443','Cloud-hosted map service']],
+  },
+  storage: {
+    id:'storage', label:'Storage', sublabel:'HDD · NAS · Cloud',
+    layer:'resources', icon:'💾', tier:'both',
+    category:'Storage Layer',
+    desc:'Nx Witness auto-discovers local drives and can write to any networked or cloud storage. Manages archive partitioning, write rotation, and redundancy across all storage pools.',
+    features:['Auto-discovery of local SATA / NVMe drives','NAS / NFS / SMB network storage support','Wasabi, AWS S3 cloud archive plugin','Per-camera bitrate and retention policies','SMART health monitoring and alerts','Separate metadata and media partitions','Minimum free space enforcement'],
+    connections:['Nx Media Server'],
+    ports:[['SMB 445','Windows network shares'],['NFS 2049','Linux network shares']],
+  },
+  video_resources: {
+    id:'video_resources', label:'Video Resources', sublabel:'Cameras & Streams',
+    layer:'resources', icon:'📷', tier:'both',
+    category:'Video Devices',
+    desc:'All video input sources — IP cameras, encoders, RTSP streams, and virtual cameras. Supports thousands of models via ONVIF and native drivers including Hikvision, Hanwha, Milesight, Axis, and Dahua.',
+    features:['ONVIF Profile S / G / T compliant cameras','Native drivers: Hikvision, Hanwha, Milesight, Axis, Dahua, Uniview','RTSP / RTMP stream sources (encoders, drones, NVRs)','H.264, H.265 / HEVC, H.265+, MJPEG codec support','Dual-stream (primary + secondary) recording','PTZ control and presets','Edge AI cameras pushing metadata directly to server'],
+    connections:['Nx Media Server','Nx AI Manager'],
+    ports:[['TCP 554','RTSP stream ingestion'],['TCP 80/443','ONVIF & HTTP camera API']],
+  },
+  control_resources: {
+    id:'control_resources', label:'Control Resources', sublabel:'Access Control & I/O',
+    layer:'resources', icon:'🔒', tier:'both',
+    category:'Control Devices',
+    desc:'Physical control devices integrated with Nx Witness — door controllers, alarm I/O, intercoms, and relay modules. Enables unified video + access control workflows.',
+    features:['Access control panels (Suprema BioStar 2, Kantech, Rosslare, Nedap)','Door station / intercom integration (Akuvox, 2N, Akubela)','Alarm zone arming / disarming event triggers','Relay output triggering from Nx Event Rules','Virtual camera overlays for access events','Wiegand reader and OSDP device support'],
+    connections:['Nx Media Server','Metadata SDK (C++)'],
+    ports:[['TCP varies','SDK / API per manufacturer'],['Wiegand','Hardware reader bus']],
+  },
+  third_party_local: {
+    id:'third_party_local', label:'3rd Party Local', sublabel:'On-Premise Integrations',
+    layer:'resources', icon:'🔧', tier:'both',
+    category:'Local Integration',
+    desc:'Locally connected third-party devices and systems integrating via LAN or WAN — no cloud dependency. Includes on-premise AI appliances, PSIM platforms, and building management systems.',
+    features:['On-premise AI analytics appliances (GPU servers)','Video walls and display controller systems','PSIM and centralised monitoring platforms','Building management systems (BMS / BAS)','POS and transaction overlay systems','Fire alarm and intruder detection panel integration'],
+    connections:['Metadata SDK (C++)','Server API (REST)','Nx Media Server'],
+    ports:[['TCP varies','Per-integration SDK']],
+  },
+};
+
+// ── Scenarios ──────────────────────────────────────────────────────────
+// Each scenario: nodes to highlight, edges (as [from,to] pairs), description
+const SCENARIOS = {
+  remote: {
+    label:'Remote Viewing',
+    title:'📡 Remote Viewing via Nx Cloud',
+    body:'A field operator opens Nx Mobile from anywhere. The app connects to Nx Cloud, which relays the request to the on-site Media Server — no VPN or port forwarding required. Live video streams back through the relay in real time.',
+    nodes:['nx_mobile','nx_cloud','nx_server','video_resources'],
+    edges:[['nx_mobile','nx_cloud'],['nx_cloud','nx_server'],['nx_server','video_resources']],
+  },
+  ai: {
+    label:'AI Detection Alert',
+    title:'🤖 AI Detection → Alert Flow',
+    body:'A camera streams video to the Media Server. Nx AI Manager runs inference at the edge, detecting an object of interest. Metadata is written back to the server event engine, which triggers an action — notifying the operator via Nx Desktop and Nx Mobile simultaneously.',
+    nodes:['video_resources','nx_server','nx_ai_manager','nx_desktop','nx_mobile'],
+    edges:[['video_resources','nx_server'],['nx_server','nx_ai_manager'],['nx_ai_manager','nx_server'],['nx_server','nx_desktop'],['nx_server','nx_mobile']],
+  },
+  multisite: {
+    label:'Multi-Site Enterprise',
+    title:'🏢 Multi-Site Enterprise Management',
+    body:'An enterprise customer manages dozens of Sites across different cities. The Organisations layer in Nx Cloud unifies all Sites under a single admin view. Permissions, licences (via Nx Connect), and policies are pushed down from the Organisation level to every Site Hive automatically.',
+    nodes:['organisations','nx_cloud','cloud_admin','server_hive','nx_connect','nx_server'],
+    edges:[['organisations','nx_cloud'],['nx_cloud','cloud_admin'],['organisations','nx_connect'],['server_hive','nx_cloud'],['nx_server','server_hive']],
+  },
+  access: {
+    label:'Access Control Event',
+    title:'🔒 Access Control + Video Verification',
+    body:'A door access event fires from a physical control panel. The Metadata SDK maps it to an Nx event, which triggers the server to pop a linked camera view on the operator\'s Nx Desktop — giving immediate visual confirmation of who entered.',
+    nodes:['control_resources','metadata_sdk','nx_server','nx_desktop'],
+    edges:[['control_resources','nx_server'],['metadata_sdk','nx_server'],['nx_server','nx_desktop'],['nx_server','metadata_sdk']],
+  },
+  failover: {
+    label:'Server Failover',
+    title:'🔄 Redundant Recording Failover',
+    body:'If a Media Server goes offline, Site Hive detects the failure and automatically redirects recording to a secondary server in the same Site. Storage continues without interruption. The event is logged and visible in Nx Cloud Admin.',
+    nodes:['nx_server','server_hive','storage','nx_cloud','cloud_admin'],
+    edges:[['nx_server','server_hive'],['server_hive','nx_cloud'],['nx_cloud','cloud_admin'],['nx_server','storage']],
+  },
+};
+
+// ── Layout ─────────────────────────────────────────────────────────────
+const POS = {
+  nx_connect:        { x:128,  y:138 },
+  cloud_admin:       { x:384,  y:138 },
+  nx_cloud:          { x:640,  y:138 },
+  nx_maps:           { x:896,  y:138 },
+  third_party_cloud: { x:1152, y:138 },
+  nx_web_admin:      { x:160,  y:328 },
+  nx_desktop:        { x:480,  y:328 },
+  nx_mobile:         { x:800,  y:328 },
+  server_api:        { x:1120, y:328 },
+  organisations:     { x:160,  y:518 },
+  nx_server:         { x:480,  y:518 },
+  server_hive:       { x:800,  y:518 },
+  nx_ai_manager:     { x:1120, y:518 },
+  storage:           { x:128,  y:710 },
+  video_resources:   { x:384,  y:710 },
+  control_resources: { x:640,  y:710 },
+  metadata_sdk:      { x:896,  y:710 },
+  third_party_local: { x:1152, y:710 },
+};
+
+const EDGES = [
+  ['nx_connect','nx_cloud','solid'],
+  ['cloud_admin','nx_cloud','solid'],
+  ['nx_cloud','nx_maps','dashed'],
+  ['nx_cloud','third_party_cloud','dashed'],
+  ['nx_cloud','nx_desktop','solid'],
+  ['nx_cloud','nx_mobile','solid'],
+  ['cloud_admin','nx_desktop','dashed'],
+  ['nx_web_admin','nx_server','solid'],
+  ['nx_desktop','nx_server','solid'],
+  ['nx_mobile','nx_server','dashed'],
+  ['server_api','nx_server','solid'],
+  ['nx_server','server_hive','solid'],
+  ['nx_server','organisations','dashed'],
+  ['organisations','nx_cloud','dashed'],
+  ['server_hive','nx_cloud','dashed'],
+  ['nx_server','nx_ai_manager','solid'],
+  ['server_api','metadata_sdk','dashed'],
+  ['nx_ai_manager','metadata_sdk','dashed'],
+  ['nx_server','storage','solid'],
+  ['nx_server','video_resources','solid'],
+  ['nx_server','control_resources','solid'],
+  ['nx_server','metadata_sdk','dashed'],
+  ['metadata_sdk','third_party_local','solid'],
+  ['nx_ai_manager','video_resources','dashed'],
+];
+
+const LAYER_COLORS = {
+  cloud:       { fill:'#06101c', stroke:'rgba(33,150,243,.09)',  grad:'grad-cloud' },
+  client:      { fill:'#040c18', stroke:'rgba(0,200,255,.07)',   grad:'grad-client' },
+  server:      { fill:'#030c10', stroke:'rgba(15,200,170,.08)',  grad:'grad-server' },
+  integration: { fill:'#050d04', stroke:'rgba(50,200,80,.07)',   grad:'grad-integration' },
+  resources:   { fill:'#090805', stroke:'rgba(200,170,40,.07)',  grad:'grad-resources' },
+};
+
+const LAYER_BANDS = [
+  { label:'CLOUD  ·  ADMINISTRATION  ·  CHANNEL MANAGEMENT', y1:46,  y2:222, layer:'cloud' },
+  { label:'CLIENT ACCESS',                                    y1:238, y2:416, layer:'client' },
+  { label:'SERVER CORE  ·  ENTERPRISE ARCHITECTURE',         y1:432, y2:606, layer:'server' },
+  { label:'INTEGRATION  ·  AI  ·  RESOURCES',                y1:622, y2:800, layer:'resources' },
+];
+
+// ── Build SVG ──────────────────────────────────────────────────────────
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('arch-svg');
+
+function el(tag,attrs={},parent=null){ const e=document.createElementNS(NS,tag); for(const[k,v] of Object.entries(attrs)) e.setAttribute(k,v); if(parent) parent.appendChild(e); return e; }
+function tx(text,attrs={},parent=null){ const e=el('text',attrs,parent); e.textContent=text; return e; }
+function hexPts(cx,cy,r){ const p=[]; for(let i=0;i<6;i++){ const a=Math.PI/180*(60*i-30); p.push(`${(cx+r*Math.cos(a)).toFixed(2)},${(cy+r*Math.sin(a)).toFixed(2)}`); } return p.join(' '); }
+
+function edgePath(x1,y1,x2,y2){
+  if(Math.abs(y1-y2)<10){ const mx=(x1+x2)/2,cy=y1-48; return `M${x1},${y1} Q${mx},${cy} ${x2},${y2}`; }
+  const my=(y1+y2)/2;
+  return `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
+}
+
+// Layer bands
+LAYER_BANDS.forEach(b=>{
+  const lc=LAYER_COLORS[b.layer]||LAYER_COLORS.cloud;
+  el('rect',{x:10,y:b.y1,width:1260,height:b.y2-b.y1,rx:12,fill:lc.fill,stroke:lc.stroke,'stroke-width':1},svg);
+  tx(b.label,{x:28,y:b.y1+15,'font-family':'Inter,sans-serif','font-size':8,'font-weight':600,'letter-spacing':1.8,fill:'rgba(255,255,255,.13)'},svg);
+});
+
+// Edges
+const edgeG=el('g',{id:'edges'},svg);
+EDGES.forEach(([from,to,style])=>{
+  const p1=POS[from],p2=POS[to]; if(!p1||!p2) return;
+  const a={
+    d:edgePath(p1.x,p1.y,p2.x,p2.y),
+    fill:'none',
+    stroke:style==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)',
+    'stroke-width':style==='solid'?1.2:0.8,
+    class:`edge-path edge-${from} edge-${to}`,
+    'data-from':from,'data-to':to,'data-style':style,
+  };
+  if(style==='dashed') a['stroke-dasharray']='5 5';
+  el('path',a,edgeG);
+});
+
+// Nodes
+const HEX_R=52;
+const liveCircles={}; // per-node live indicator elements
+
+Object.entries(POS).forEach(([id,pos])=>{
+  const node=NODES[id]; if(!node) return;
+  const lc=LAYER_COLORS[node.layer]||LAYER_COLORS.cloud;
+  const g=el('g',{class:'hex-group',id:`node-${id}`,'data-id':id},svg);
+
+  el('polygon',{points:hexPts(pos.x,pos.y+3,HEX_R),fill:'rgba(0,0,0,.35)',class:'hex-shadow'},g);
+  el('polygon',{points:hexPts(pos.x,pos.y,HEX_R),fill:`url(#${lc.grad})`,stroke:'rgba(255,255,255,.1)','stroke-width':1,class:'hex-bg'},g);
+  el('polygon',{points:hexPts(pos.x,pos.y,HEX_R+5),fill:'none',stroke:'rgba(33,150,243,.85)','stroke-width':1.5,class:`hex-ring ring-${id}`,style:'opacity:0;transition:opacity .2s'},g);
+
+  if(node.tier==='enterprise'){
+    el('polygon',{points:hexPts(pos.x,pos.y,HEX_R-2),fill:'none',stroke:'rgba(251,191,36,.3)','stroke-width':1,'stroke-dasharray':'3 4'},g);
+  }
+
+  tx(node.icon,{x:pos.x,y:pos.y-10,'text-anchor':'middle','dominant-baseline':'middle','font-size':20},g);
+  tx(node.label,{x:pos.x,y:pos.y+14,'text-anchor':'middle','dominant-baseline':'middle','font-family':'Space Grotesk,sans-serif','font-size':9.5,'font-weight':700,fill:'#ccd8ec',class:'hex-label'},g);
+  tx(node.sublabel,{x:pos.x,y:pos.y+HEX_R+14,'text-anchor':'middle','font-family':'Inter,sans-serif','font-size':8,'font-weight':400,fill:'#3e5070',class:'hex-sublabel'},g);
+
+  // Live indicator dot (hidden by default)
+  const liveDot=el('circle',{cx:pos.x+HEX_R-6,cy:pos.y-HEX_R+8,r:5,fill:'url(#grad-live)',stroke:'rgba(8,12,18,.8)','stroke-width':1.5,opacity:0,class:`live-indicator live-${id}`},g);
+  liveCircles[id]=liveDot;
+
+  g.style.cursor='pointer';
+  g.addEventListener('click',()=>openPanel(id));
+  g.addEventListener('mouseenter',()=>{ if(!activeNode&&!activeScenario){ dimAll(); brightNode(id); highlightEdges(id); }});
+  g.addEventListener('mouseleave',()=>{ if(!activeNode&&!activeScenario){ if(activeFilter==='all') undimAll(); else applyFilter(activeFilter); }});
+});
+
+// ── State ──────────────────────────────────────────────────────────────
+let activeNode=null;
+let activeScenario=null;
+let activeFilter='all';
+let activeTier='pro';
+
+// ── Edge helpers ───────────────────────────────────────────────────────
+function highlightEdges(id){
+  svg.querySelectorAll(`.edge-${id}`).forEach(e=>{
+    e.setAttribute('stroke','rgba(33,150,243,.75)');
+    e.setAttribute('stroke-width','1.8');
+  });
+}
+function dimAll(){
+  Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='.22'; });
+  svg.querySelectorAll('.edge-path').forEach(e=>e.setAttribute('stroke','rgba(33,150,243,.04)'));
+}
+function undimAll(){
+  Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1'; });
+  svg.querySelectorAll('.edge-path').forEach(e=>{
+    const d=e.getAttribute('stroke-dasharray'),s=e.getAttribute('data-style');
+    e.setAttribute('stroke',s==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)');
+    e.setAttribute('stroke-width',s==='solid'?'1.2':'0.8');
+    e.classList.remove('flow-active');
+  });
+  if(activeNode){ const r=svg.querySelector(`.ring-${activeNode}`); if(r) r.style.opacity='1'; }
+}
+function brightNode(id){
+  const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1';
+  svg.querySelectorAll(`.edge-${id}`).forEach(e=>{
+    const from=e.getAttribute('data-from'),to=e.getAttribute('data-to'),oth=from===id?to:from;
+    const og=document.getElementById(`node-${oth}`); if(og) og.style.opacity='.65';
+  });
+}
+
+// ── Panel ──────────────────────────────────────────────────────────────
+function openPanel(id){
+  const node=NODES[id]; if(!node) return;
+  if(activeNode){ const p=svg.querySelector(`.ring-${activeNode}`); if(p) p.style.opacity='0'; }
+  activeNode=id;
+  const ring=svg.querySelector(`.ring-${id}`); if(ring) ring.style.opacity='1';
+  if(!activeScenario){ dimAll(); brightNode(id); highlightEdges(id); }
+
+  const lc=LAYER_COLORS[node.layer]||LAYER_COLORS.cloud;
+  const pi=document.getElementById('panelIcon');
+  pi.style.background=lc.fill; pi.style.border='1px solid rgba(255,255,255,.1)'; pi.textContent=node.icon;
+
+  const catEl=document.getElementById('panelCategory');
+  catEl.textContent=node.category;
+  catEl.style.color=node.tier==='enterprise'?'#fbbf24':'#60a5fa';
+  document.getElementById('panelTitle').textContent=node.label;
+
+  const tierEl=document.getElementById('panelTier');
+  tierEl.innerHTML=node.tier==='enterprise'
+    ?`<span class="panel-tier" style="background:rgba(245,158,11,.09);color:#fbbf24;border:1px solid rgba(245,158,11,.2)">★ Enterprise only</span>`
+    :`<span class="panel-tier" style="background:rgba(33,150,243,.07);color:#7a8898;border:1px solid rgba(100,130,180,.14)">Pro &amp; Enterprise</span>`;
+
+  let html='';
+  if(node.gen6) html+=`<div class="gen6-note"><strong>Gen 6:</strong> ${node.gen6}</div>`;
+  html+=`<p class="panel-desc">${node.desc}</p>`;
+  if(node.features?.length){ html+=`<p class="panel-section-title">Capabilities</p><ul class="feature-list">`; node.features.forEach(f=>{html+=`<li>${f}</li>`;}); html+=`</ul>`; }
+  if(node.connections?.length){ html+=`<p class="panel-section-title">Connects To</p><div class="connections-grid">`; node.connections.forEach(c=>{html+=`<span class="conn-chip">${c}</span>`;}); html+=`</div>`; }
+  if(node.ports?.length){ html+=`<p class="panel-section-title">Network Ports</p><table class="port-table"><thead><tr><th>Port</th><th>Purpose</th></tr></thead><tbody>`; node.ports.forEach(([p,d])=>{html+=`<tr><td>${p}</td><td>${d}</td></tr>`;}); html+=`</tbody></table>`; }
+
+  document.getElementById('panelBody').innerHTML=html;
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('overlay').classList.add('active');
+}
+function closePanel(){
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+  if(activeNode){ const r=svg.querySelector(`.ring-${activeNode}`); if(r) r.style.opacity='0'; activeNode=null; }
+  if(!activeScenario) undimAll();
+}
+
+// ── Tier toggle ────────────────────────────────────────────────────────
+function setTier(tier){
+  activeTier=tier;
+  document.getElementById('tierPro').className='tier-btn'+(tier==='pro'?' active-pro':'');
+  document.getElementById('tierEnt').className='tier-btn'+(tier==='enterprise'?' active-ent':'');
+
+  closePanel(); if(activeScenario) runScenario('none');
+  undimAll();
+
+  if(tier==='all') return;
+
+  Object.entries(NODES).forEach(([id,node])=>{
+    const g=document.getElementById(`node-${id}`); if(!g) return;
+    const show=(tier==='pro' && node.tier!=='enterprise') || (tier==='enterprise');
+    g.style.opacity=show?'1':'.15';
+    g.style.pointerEvents=show?'auto':'none';
+  });
+  svg.querySelectorAll('.edge-path').forEach(e=>{
+    const from=e.getAttribute('data-from'),to=e.getAttribute('data-to');
+    const fn=NODES[from],tn=NODES[to];
+    const visible= tier==='enterprise' || (fn?.tier!=='enterprise' && tn?.tier!=='enterprise');
+    e.setAttribute('stroke',visible?(e.getAttribute('data-style')==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)'):'rgba(33,150,243,.03)');
+  });
+}
+
+// ── Scenarios ──────────────────────────────────────────────────────────
+function runScenario(key){
+  // Clear previous
+  svg.querySelectorAll('.edge-path').forEach(e=>{ e.classList.remove('flow-active'); });
+  document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active'));
+
+  if(key==='none'||key===activeScenario){
+    activeScenario=null;
+    setLiveNodes([]);
+    closePanel();
+    if(activeFilter==='all') undimAll(); else applyFilter(activeFilter);
+    hideToast();
+    return;
+  }
+
+  const sc=SCENARIOS[key]; if(!sc) return;
+  activeScenario=key;
+  closePanel();
+
+  // Mark button active
+  document.querySelectorAll('.scenario-btn').forEach(b=>{ if(b.textContent.includes(sc.label)) b.classList.add('active'); });
+
+  // Dim everything
+  dimAll();
+
+  // Brighten scenario nodes
+  sc.nodes.forEach(id=>{
+    const g=document.getElementById(`node-${id}`);
+    if(g) g.style.opacity='1';
+  });
+
+  // Highlight + animate scenario edges
+  sc.edges.forEach(([from,to])=>{
+    svg.querySelectorAll('.edge-path').forEach(e=>{
+      const ef=e.getAttribute('data-from'),et=e.getAttribute('data-to');
+      if((ef===from&&et===to)||(ef===to&&et===from)){
+        e.setAttribute('stroke','rgba(15,200,170,.85)');
+        e.setAttribute('stroke-width','2.2');
+        e.setAttribute('stroke-dasharray','10 8');
+        e.classList.add('flow-active');
+      }
+    });
+  });
+
+  setLiveNodes(sc.nodes);
+  showToast(sc.title, sc.body);
+}
+
+function showToast(title,body){
+  document.getElementById('toastTitle').textContent=title;
+  document.getElementById('toastBody').textContent=body;
+  document.getElementById('scenarioToast').classList.add('visible');
+}
+function hideToast(){
+  document.getElementById('scenarioToast').classList.remove('visible');
+}
+
+// ── Live mode — driven by scenarios ───────────────────────────────────
+function setLiveNodes(ids){
+  // Turn off all dots first
+  Object.values(liveCircles).forEach(dot=>{
+    dot.setAttribute('opacity','0'); dot.style.animation='';
+  });
+  // Turn on dots for the given node ids
+  ids.forEach(id=>{
+    const dot=liveCircles[id]; if(!dot) return;
+    dot.setAttribute('opacity','1');
+    dot.style.animation=`livepulse ${1.4+Math.random()*0.8}s ease-in-out ${Math.random()*0.5}s infinite`;
+  });
+}
+
+// ── Layer filter ───────────────────────────────────────────────────────
+const LAYER_MAP={
+  cloud:       ['nx_connect','cloud_admin','nx_cloud','nx_maps','third_party_cloud'],
+  client:      ['nx_web_admin','nx_desktop','nx_mobile','server_api'],
+  server:      ['organisations','nx_server','server_hive'],
+  integration: ['nx_ai_manager','metadata_sdk','nx_maps','third_party_local'],
+  resources:   ['storage','video_resources','control_resources'],
+};
+function applyFilter(layer){
+  if(layer==='all'){ undimAll(); return; }
+  dimAll();
+  const ids=LAYER_MAP[layer]||[];
+  ids.forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1'; });
+  svg.querySelectorAll('.edge-path').forEach(e=>{
+    const from=e.getAttribute('data-from'),to=e.getAttribute('data-to'),s=e.getAttribute('data-style');
+    if(ids.includes(from)&&ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.65)'); e.setAttribute('stroke-width','1.8'); }
+    else if(ids.includes(from)||ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.18)'); }
+  });
+}
+function filterLayer(layer,e){
+  closePanel(); if(activeScenario) runScenario('none');
+  activeFilter=layer;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(e) e.target.classList.add('active');
+  applyFilter(layer);
+}
+
+// CSS animation for live dots (injected so SVG elements can use it)
+const styleEl=document.createElement('style');
+styleEl.textContent=`@keyframes livepulse{0%,100%{opacity:1;r:5}50%{opacity:.3;r:3.5}}`;
+document.head.appendChild(styleEl);
+</script>
+</body>
+</html>
