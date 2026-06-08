@@ -188,8 +188,8 @@
     <button class="filter-btn" onclick="filterLayer('resources',event)">Resources</button>
     <div class="control-sep"></div>
     <div class="tier-toggle">
-      <button class="tier-btn active-pro" id="tierPro" onclick="setTier('pro')">Pro</button>
-      <button class="tier-btn" id="tierEnt" onclick="setTier('enterprise')">Enterprise</button>
+      <button class="tier-btn" id="tierPro" onclick="setTier('pro')">Pro</button>
+      <button class="tier-btn active-ent" id="tierEnt" onclick="setTier('enterprise')">Enterprise</button>
     </div>
   </div>
 
@@ -613,14 +613,14 @@ Object.entries(POS).forEach(([id,pos])=>{
   g.style.cursor='pointer';
   g.addEventListener('click',()=>openPanel(id));
   g.addEventListener('mouseenter',()=>{ if(!activeNode&&!activeScenario){ dimAll(); brightNode(id); highlightEdges(id); }});
-  g.addEventListener('mouseleave',()=>{ if(!activeNode&&!activeScenario){ if(activeFilter==='all') undimAll(); else applyFilter(activeFilter); }});
+  g.addEventListener('mouseleave',()=>{ if(!activeNode&&!activeScenario) restoreView(); });
 });
 
 // ── State ──────────────────────────────────────────────────────────────
 let activeNode=null;
 let activeScenario=null;
 let activeFilter='all';
-let activeTier='pro';
+let activeTier='enterprise';
 
 // ── Edge helpers ───────────────────────────────────────────────────────
 function highlightEdges(id){
@@ -691,29 +691,37 @@ function closePanel(){
   if(!activeScenario) undimAll();
 }
 
+// ── View coordination ─────────────────────────────────────────────────
+// Three persistent states can affect what's shown: tier, layer filter,
+// and scenario. restoreView() reapplies the persistent ones (tier + filter)
+// after a transient hover ends. applyTierDim() layers the Pro/Enterprise
+// dimming on top of whatever the filter produced.
+function applyTierDim(){
+  // Baseline: every node clickable
+  Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.pointerEvents='auto'; });
+  if(activeTier!=='pro') return; // Enterprise shows everything
+  Object.entries(NODES).forEach(([id,node])=>{
+    if(node.tier!=='enterprise') return;
+    const g=document.getElementById(`node-${id}`);
+    if(g){ g.style.opacity='.15'; g.style.pointerEvents='none'; }
+  });
+  svg.querySelectorAll('.edge-path').forEach(e=>{
+    const fn=NODES[e.getAttribute('data-from')],tn=NODES[e.getAttribute('data-to')];
+    if(fn?.tier==='enterprise'||tn?.tier==='enterprise') e.setAttribute('stroke','rgba(33,150,243,.03)');
+  });
+}
+function restoreView(){
+  if(activeFilter==='all') undimAll(); else applyFilter(activeFilter);
+  applyTierDim();
+}
+
 // ── Tier toggle ────────────────────────────────────────────────────────
 function setTier(tier){
   activeTier=tier;
   document.getElementById('tierPro').className='tier-btn'+(tier==='pro'?' active-pro':'');
   document.getElementById('tierEnt').className='tier-btn'+(tier==='enterprise'?' active-ent':'');
-
   closePanel(); if(activeScenario) runScenario('none');
-  undimAll();
-
-  if(tier==='all') return;
-
-  Object.entries(NODES).forEach(([id,node])=>{
-    const g=document.getElementById(`node-${id}`); if(!g) return;
-    const show=(tier==='pro' && node.tier!=='enterprise') || (tier==='enterprise');
-    g.style.opacity=show?'1':'.15';
-    g.style.pointerEvents=show?'auto':'none';
-  });
-  svg.querySelectorAll('.edge-path').forEach(e=>{
-    const from=e.getAttribute('data-from'),to=e.getAttribute('data-to');
-    const fn=NODES[from],tn=NODES[to];
-    const visible= tier==='enterprise' || (fn?.tier!=='enterprise' && tn?.tier!=='enterprise');
-    e.setAttribute('stroke',visible?(e.getAttribute('data-style')==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)'):'rgba(33,150,243,.03)');
-  });
+  restoreView();
 }
 
 // ── Scenarios ──────────────────────────────────────────────────────────
@@ -726,7 +734,7 @@ function runScenario(key){
     activeScenario=null;
     setLiveNodes([]);
     closePanel();
-    if(activeFilter==='all') undimAll(); else applyFilter(activeFilter);
+    restoreView();
     hideToast();
     return;
   }
@@ -811,12 +819,13 @@ function filterLayer(layer,e){
   activeFilter=layer;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   if(e) e.target.classList.add('active');
-  applyFilter(layer);
+  restoreView();
 }
 
-// CSS animation for live dots (injected so SVG elements can use it)
+// CSS animation for live dots — opacity-only so it works in all browsers
+// (animating the SVG `r` attribute via CSS is Chrome-only)
 const styleEl=document.createElement('style');
-styleEl.textContent=`@keyframes livepulse{0%,100%{opacity:1;r:5}50%{opacity:.3;r:3.5}}`;
+styleEl.textContent=`@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}`;
 document.head.appendChild(styleEl);
 </script>
 </body>
