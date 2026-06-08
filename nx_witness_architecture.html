@@ -647,9 +647,12 @@ function dimAll(){
   svg.querySelectorAll('.edge-path').forEach(e=>e.setAttribute('stroke','rgba(33,150,243,.04)'));
 }
 function undimAll(){
-  Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1'; });
+  Object.keys(POS).forEach(id=>{
+    const g=document.getElementById(`node-${id}`);
+    if(g){ g.style.opacity='1'; g.style.pointerEvents='auto'; } // fix: restore pointer events
+  });
   svg.querySelectorAll('.edge-path').forEach(e=>{
-    const d=e.getAttribute('stroke-dasharray'),s=e.getAttribute('data-style');
+    const s=e.getAttribute('data-style');
     e.setAttribute('stroke',s==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)');
     e.setAttribute('stroke-width',s==='solid'?'1.2':'0.8');
     e.classList.remove('flow-active');
@@ -814,8 +817,8 @@ const LAYER_MAP={
   cloud:       ['nx_connect','cloud_admin','nx_cloud','nx_maps','third_party_cloud'],
   client:      ['nx_web_admin','nx_desktop','nx_mobile','server_api'],
   server:      ['organisations','nx_server','server_hive'],
-  integration: ['nx_ai_manager','metadata_sdk','nx_maps','third_party_local'],
-  resources:   ['storage','video_resources','control_resources'],
+  integration: ['nx_ai_manager','metadata_sdk'],
+  resources:   ['storage','video_resources','control_resources','metadata_sdk','third_party_local'],
 };
 function filterLayer(layer,e){
   closePanel(); if(activeScenario) runScenario('none');
@@ -827,14 +830,15 @@ function filterLayer(layer,e){
   ids.forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1'; });
   svg.querySelectorAll('.edge-path').forEach(e=>{
     const from=e.getAttribute('data-from'),to=e.getAttribute('data-to'),s=e.getAttribute('data-style');
+    const s=e.getAttribute('data-style');
     if(ids.includes(from)&&ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.65)'); e.setAttribute('stroke-width','1.8'); }
-    else if(ids.includes(from)||ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.18)'); }
+    else if(ids.includes(from)||ids.includes(to)){ e.setAttribute('stroke','rgba(33,150,243,.18)'); e.setAttribute('stroke-width',s==='solid'?'1.2':'0.8'); }
   });
 }
 
 // CSS animation for live dots (injected so SVG elements can use it)
 const styleEl=document.createElement('style');
-styleEl.textContent=`@keyframes livepulse{0%,100%{opacity:1;r:5}50%{opacity:.3;r:3.5}}`;
+styleEl.textContent=`@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}`;
 document.head.appendChild(styleEl);
 </script>
 </body>
