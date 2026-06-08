@@ -105,9 +105,9 @@
   /* ── SVG ─────────────────────────────────────────────── */
   #arch-svg { display:block; width:100%; max-width:1360px; margin:0 auto; }
 
-  /* Flow pulse animation */
-  @keyframes flowdash { to { stroke-dashoffset: -40; } }
-  .flow-active { animation: flowdash 1.2s linear infinite !important; }
+  /* Flow pulse animation — offset must equal dasharray total (12+8=20) for seamless loop */
+  @keyframes flowdash { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -20; } }
+  .flow-active { animation: flowdash 0.9s linear infinite !important; }
 
   /* ── Detail Panel ────────────────────────────────────── */
   .detail-panel {
@@ -754,7 +754,7 @@ function runScenario(key){
       if((ef===from&&et===to)||(ef===to&&et===from)){
         e.setAttribute('stroke','rgba(15,200,170,.85)');
         e.setAttribute('stroke-width','2.2');
-        e.setAttribute('stroke-dasharray','10 8');
+        e.setAttribute('stroke-dasharray','12 8');
         e.classList.add('flow-active');
       }
     });
