@@ -629,17 +629,24 @@ function highlightEdges(id){
     e.setAttribute('stroke-width','1.8');
   });
 }
+// Reset an edge's width + dash pattern back to its base style.
+// Centralised so scenario styling (thick/animated dashes) never lingers.
+function resetEdgeShape(e){
+  const s=e.getAttribute('data-style');
+  e.setAttribute('stroke-width',s==='solid'?'1.2':'0.8');
+  if(s==='dashed') e.setAttribute('stroke-dasharray','5 5'); else e.removeAttribute('stroke-dasharray');
+  e.classList.remove('flow-active');
+}
 function dimAll(){
   Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='.22'; });
-  svg.querySelectorAll('.edge-path').forEach(e=>e.setAttribute('stroke','rgba(33,150,243,.04)'));
+  svg.querySelectorAll('.edge-path').forEach(e=>{ resetEdgeShape(e); e.setAttribute('stroke','rgba(33,150,243,.04)'); });
 }
 function undimAll(){
   Object.keys(POS).forEach(id=>{ const g=document.getElementById(`node-${id}`); if(g) g.style.opacity='1'; });
   svg.querySelectorAll('.edge-path').forEach(e=>{
-    const d=e.getAttribute('stroke-dasharray'),s=e.getAttribute('data-style');
+    const s=e.getAttribute('data-style');
+    resetEdgeShape(e);
     e.setAttribute('stroke',s==='solid'?'rgba(33,150,243,.2)':'rgba(33,150,243,.1)');
-    e.setAttribute('stroke-width',s==='solid'?'1.2':'0.8');
-    e.classList.remove('flow-active');
   });
   if(activeNode){ const r=svg.querySelector(`.ring-${activeNode}`); if(r) r.style.opacity='1'; }
 }
@@ -688,7 +695,7 @@ function closePanel(){
   document.getElementById('detailPanel').classList.remove('open');
   document.getElementById('overlay').classList.remove('active');
   if(activeNode){ const r=svg.querySelector(`.ring-${activeNode}`); if(r) r.style.opacity='0'; activeNode=null; }
-  if(!activeScenario) undimAll();
+  if(!activeScenario) restoreView(); // restore active tier/filter, not full view
 }
 
 // ── View coordination ─────────────────────────────────────────────────
