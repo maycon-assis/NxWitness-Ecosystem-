@@ -461,9 +461,9 @@ const SCENARIOS = {
   remote: {
     label:'Remote Viewing',
     title:'📡 Remote Viewing via Nx Cloud',
-    body:'A field operator opens Nx Mobile from anywhere. The app connects to Nx Cloud, which relays the request to the on-site Media Server — no VPN or port forwarding required. Live video streams back through the relay in real time.',
-    nodes:['nx_mobile','nx_cloud','nx_server','video_resources'],
-    edges:[['nx_mobile','nx_cloud'],['nx_cloud','nx_server'],['nx_server','video_resources']],
+    body:'A field operator opens Nx Mobile or Nx Desktop from anywhere. The client connects to Nx Cloud, which relays the request to the on-site Media Server — no VPN or port forwarding required. Live video streams back through the relay in real time.',
+    nodes:['nx_mobile','nx_desktop','nx_cloud','nx_server','video_resources'],
+    edges:[['nx_mobile','nx_cloud'],['nx_desktop','nx_cloud'],['nx_cloud','nx_server'],['nx_server','video_resources']],
   },
   ai: {
     label:'AI Detection Alert',
